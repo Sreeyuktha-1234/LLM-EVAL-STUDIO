@@ -2,9 +2,11 @@ from fastapi import FastAPI, HTTPException
 
 from config import settings
 from models.model_loader import ModelRegistrationRequest, ModelRegistry
+from prompts.prompt_runner import PromptExecutionRequest, PromptRunner
 
 app = FastAPI(title=settings.app_name, version=settings.app_version, debug=settings.debug)
 model_registry = ModelRegistry()
+prompt_runner = PromptRunner(model_registry)
 
 
 @app.get("/")
@@ -68,4 +70,20 @@ def load_model(model_id: str) -> dict:
         raise HTTPException(
             status_code=500,
             detail=f"Unexpected model loading error: {error}",
+        ) from error
+
+
+@app.post(f"{settings.api_v1_prefix}/prompts/execute")
+def execute_prompt(request: PromptExecutionRequest) -> dict:
+    try:
+        result = prompt_runner.execute(request)
+        return {"result": result.model_dump()}
+    except ValueError as error:
+        raise HTTPException(status_code=400, detail=str(error)) from error
+    except RuntimeError as error:
+        raise HTTPException(status_code=500, detail=str(error)) from error
+    except Exception as error:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Unexpected prompt execution error: {error}",
         ) from error
