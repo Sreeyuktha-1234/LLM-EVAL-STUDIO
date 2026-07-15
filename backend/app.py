@@ -2,11 +2,13 @@ from fastapi import FastAPI, HTTPException
 
 from config import settings
 from models.model_loader import ModelRegistrationRequest, ModelRegistry
+from prompts.prompt_history import PromptHistoryStore
 from prompts.prompt_runner import PromptExecutionRequest, PromptRunner
 
 app = FastAPI(title=settings.app_name, version=settings.app_version, debug=settings.debug)
 model_registry = ModelRegistry()
-prompt_runner = PromptRunner(model_registry)
+prompt_history_store = PromptHistoryStore()
+prompt_runner = PromptRunner(model_registry, history_store=prompt_history_store)
 
 
 @app.get("/")

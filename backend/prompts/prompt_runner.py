@@ -6,6 +6,7 @@ from typing import Any
 from pydantic import BaseModel, Field
 
 from models.model_loader import ModelRegistry
+from prompts.prompt_history import PromptHistoryStore
 
 
 class PromptExecutionRequest(BaseModel):
@@ -25,8 +26,13 @@ class PromptExecutionResult(BaseModel):
 
 
 class PromptRunner:
-    def __init__(self, model_registry: ModelRegistry) -> None:
+    def __init__(
+        self,
+        model_registry: ModelRegistry,
+        history_store: PromptHistoryStore | None = None,
+    ) -> None:
         self._model_registry = model_registry
+        self._history_store = history_store
 
     def execute(self, request: PromptExecutionRequest) -> PromptExecutionResult:
         loaded = self._model_registry.get_loaded_model(request.model_id)
@@ -71,6 +77,13 @@ class PromptRunner:
         prompt_length = encoded["input_ids"].shape[1]
         response_ids = generated_ids[0][prompt_length:]
         response_text = tokenizer.decode(response_ids, skip_special_tokens=True).strip()
+
+        if self._history_store is not None:
+            self._history_store.add_entry(
+                model=request.model_id,
+                prompt=request.prompt,
+                response=response_text,
+            )
 
         return PromptExecutionResult(
             model_id=request.model_id,
